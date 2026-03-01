@@ -5,15 +5,20 @@
 # Usage:
 #   python main.py --input designs/ALU.v --topk 10
 #   python main.py --input designs/ --all --topk 5
+#
+# Fixes vs original:
+#   - get_signal_info() call no longer passes filepath (removed unused param)
+#   - Both output HTML files go into the same output folder so the iframe
+#     src="./<name>_inner.html" always resolves correctly
+#   - print_report + save_report calls restored (were missing in uploaded version)
 
 import os
 import argparse
 
-# Import our 4 modules
 from final_parser  import parse_verilog
 from graph_builder import build_graph, save_graph, get_signal_info
 from analyzer      import analyze, print_report, save_report
-from visualizer    import visualize_interactive,generate_final_report
+from visualizer    import visualize_interactive, generate_final_report
 
 
 # ══════════════════════════════════════════
@@ -21,30 +26,56 @@ from visualizer    import visualize_interactive,generate_final_report
 # ══════════════════════════════════════════
 
 def run_one_file(filepath, K=10):
+    """
+    Full pipeline for one Verilog file:
+        parse → build graph → analyze → report → visualize
+    """
     design_name = os.path.splitext(os.path.basename(filepath))[0]
-    
-    # 1. Parse Verilog
+
+    print(f"\n{'#' * 55}")
+    print(f"  Processing : {design_name}")
+    print(f"  File       : {filepath}")
+    print(f"{'#' * 55}")
+
+    # 1. Parse Verilog → edges
     edges = parse_verilog(filepath)
-    if not edges: return None
-    
-    # 2. Build Graph
+    if not edges:
+        print(f"  ⚠  No edges found — skipping {filepath}")
+        return None
+
+    # 2. Build directed graph
     G = build_graph(edges)
-    
-    # 3. Analyze Results
+
+    # 3. Analyze (fan-in, fan-out, top-K, stats)
     results = analyze(G, K=K)
-    
-    # 4. GENERATE ANIMATED GRAPH
+
+    # 4. Print text report to console
+    print_report(results, design_name=design_name, K=K)
+
+    # 5. Save text report to file
     os.makedirs("reports", exist_ok=True)
-    graph_inner = f"reports/{design_name}_inner.html"
-    visualize_interactive(G, results, graph_inner)
-    
-    # 5. GENERATE FINAL DASHBOARD WITH TABLE
+    report_path = f"reports/{design_name}_report.txt"
+    save_report(results, design_name, report_path, K=K)
+
+    # 6. Generate animated graph HTML
+    # FIX: both HTML files go into reports/ so the iframe src works correctly
+    inner_path     = f"reports/{design_name}_inner.html"
     dashboard_path = f"reports/{design_name}_dashboard.html"
-    # We pass the name of the 'inner' file so the iframe can load it
-    generate_final_report(results, f"{design_name}_inner.html", dashboard_path)
-    
-    print(f"\n  ✅ Sequence Complete!")
-    print(f"  Open this dashboard: {dashboard_path}")
+
+    visualize_interactive(G, results, inner_path)
+
+    # Pass only the filename (not the full path) as the iframe src —
+    # dashboard and inner file are in the same folder
+    generate_final_report(
+        results,
+        graph_html_filename=f"{design_name}_inner.html",
+        output_path=dashboard_path,
+    )
+
+    print(f"\n  ✅ Done!")
+    print(f"     Text report  → {report_path}")
+    print(f"     Dashboard    → {dashboard_path}  ← open this in a browser")
+
     return results
 
 
@@ -54,13 +85,12 @@ def run_one_file(filepath, K=10):
 
 def run_all_files(folder_path, K=10):
     """
-    Run the full pipeline on every .v and .sv
-    file found in a folder.
+    Run the full pipeline on every .v and .sv file in a folder.
+    Prints a comparative summary table at the end.
     """
-
     verilog_files = []
     for root, dirs, files in os.walk(folder_path):
-        for file in files:
+        for file in sorted(files):
             if file.endswith('.v') or file.endswith('.sv'):
                 verilog_files.append(os.path.join(root, file))
 
@@ -68,7 +98,7 @@ def run_all_files(folder_path, K=10):
         print(f"  No .v or .sv files found in {folder_path}")
         return
 
-    print(f"\n  Found {len(verilog_files)} Verilog files")
+    print(f"\n  Found {len(verilog_files)} Verilog file(s)")
 
     all_results = {}
     failed      = []
@@ -77,22 +107,20 @@ def run_all_files(folder_path, K=10):
         try:
             results = run_one_file(filepath, K=K)
             if results:
-                name = os.path.splitext(
-                         os.path.basename(filepath)
-                       )[0]
+                name = os.path.splitext(os.path.basename(filepath))[0]
                 all_results[name] = results
         except Exception as e:
-            print(f"  Failed on {filepath}: {e}")
+            print(f"  ✗ Failed on {filepath}: {e}")
             failed.append(filepath)
 
     # Summary table
-    print(f"\n{'=' * 60}")
-    print(f"  SUMMARY — All Designs")
-    print(f"{'=' * 60}")
+    print(f"\n{'=' * 65}")
+    print(f"  BATCH SUMMARY — All Designs")
+    print(f"{'=' * 65}")
     print(f"  {'Design':<25} {'Signals':>8} {'Edges':>8} {'MaxFanIn':>10} {'MaxFanOut':>10}")
     print(f"  {'-' * 65}")
 
-    for name, res in all_results.items():
+    for name, res in sorted(all_results.items()):
         s = res["stats"]
         print(
             f"  {name:<25} "
@@ -106,8 +134,8 @@ def run_all_files(folder_path, K=10):
     if failed:
         print(f"  Failed    : {len(failed)}")
         for f in failed:
-            print(f"    - {f}")
-    print(f"{'=' * 60}")
+            print(f"    ✗ {f}")
+    print(f"{'=' * 65}")
 
 
 # ══════════════════════════════════════════
@@ -117,19 +145,20 @@ def run_all_files(folder_path, K=10):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
-        description="RTL Connectivity Profiler"
+        description="RTL Connectivity Profiler",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
-        "--input",  required=True,
-        help="Path to .v/.sv file OR folder"
+        "--input", "-i", required=True,
+        help="Path to a .v/.sv file OR a folder"
     )
     parser.add_argument(
-        "--topk", type=int, default=10,
+        "--topk", "-k", type=int, default=10,
         help="Number of top signals to report"
     )
     parser.add_argument(
-        "--all", action="store_true",
-        help="Run on ALL files in folder"
+        "--all", "-a", action="store_true",
+        help="Process ALL .v/.sv files in the folder (recursive)"
     )
 
     args = parser.parse_args()

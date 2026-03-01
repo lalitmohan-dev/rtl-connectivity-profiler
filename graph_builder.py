@@ -37,12 +37,10 @@ def build_graph(edges):
         G — networkx DiGraph object
     """
 
-    # DiGraph = Directed Graph (arrows have direction)
     G = nx.DiGraph()
 
     for (source, destination) in edges:
-        # add_edge automatically adds nodes too
-        # if they don't exist yet
+        # add_edge automatically adds nodes too if they don't exist yet
         G.add_edge(source, destination)
 
     print(f"\n  Graph built successfully!")
@@ -56,33 +54,35 @@ def build_graph(edges):
 # EXTRA INFO — Get signal categories
 # ══════════════════════════════════════════
 
-def get_signal_info(G, filepath):
+def get_signal_info(G):
     """
     Categorize every signal in the graph:
-        - input port    (no incoming edges)
-        - output port   (no outgoing edges)
-        - internal wire (has both)
-        - isolated      (no edges at all)
+        - input    (no incoming edges  — primary inputs / clocks)
+        - output   (no outgoing edges  — primary outputs)
+        - internal (has both in and out edges)
+        - isolated (no edges at all)
 
-    This helps us understand the graph better.
+    FIX: removed unused `filepath` parameter from original signature.
+
+    Returns dict with keys: inputs, outputs, internal, isolated
     """
 
     info = {
-        "inputs"    : [],   # signals with no predecessors
-        "outputs"   : [],   # signals with no successors
-        "internal"  : [],   # signals with both
-        "isolated"  : [],   # signals completely alone
+        "inputs"  : [],
+        "outputs" : [],
+        "internal": [],
+        "isolated": [],
     }
 
     for node in G.nodes():
-        has_incoming = G.in_degree(node)  > 0
-        has_outgoing = G.out_degree(node) > 0
+        has_in  = G.in_degree(node)  > 0
+        has_out = G.out_degree(node) > 0
 
-        if     has_incoming and     has_outgoing:
+        if   has_in and has_out:
             info["internal"].append(node)
-        elif   has_incoming and not has_outgoing:
+        elif has_in:
             info["outputs"].append(node)
-        elif not has_incoming and   has_outgoing:
+        elif has_out:
             info["inputs"].append(node)
         else:
             info["isolated"].append(node)
@@ -96,33 +96,26 @@ def get_signal_info(G, filepath):
 
 def save_graph(G, output_path):
     """
-    Save the graph to a file so you
-    don't have to rebuild it every time.
-
-    Uses GraphML format — readable by
-    many tools including Gephi.
+    Save the graph to GraphML format.
+    Readable by Gephi, yEd, and other graph tools.
     """
     nx.write_graphml(G, output_path)
     print(f"  Graph saved → {output_path}")
 
 
 def load_graph(input_path):
-    """
-    Load a previously saved graph.
-    """
+    """Load a previously saved GraphML graph."""
     G = nx.read_graphml(input_path)
     print(f"  Graph loaded ← {input_path}")
     return G
 
 
 # ══════════════════════════════════════════
-# TEST IT
+# TEST
 # ══════════════════════════════════════════
 
 if __name__ == "__main__":
 
-    # Simulate what final_parser.py gives us
-    # (replace this with real parser output later)
     test_edges = {
         ("a",   "d"),
         ("b",   "d"),
@@ -135,11 +128,10 @@ if __name__ == "__main__":
     print("  Testing graph_builder.py")
     print("=" * 45)
 
-    # Build the graph
     G = build_graph(test_edges)
 
-    # Get signal categories
-    info = get_signal_info(G, "test.v")
+    # FIX: get_signal_info no longer takes filepath
+    info = get_signal_info(G)
 
     print(f"\n  Signal categories:")
     print(f"    Input-like  signals : {info['inputs']}")
@@ -147,7 +139,6 @@ if __name__ == "__main__":
     print(f"    Internal    signals : {info['internal']}")
     print(f"    Isolated    signals : {info['isolated']}")
 
-    # Save the graph
-    save_graph(G, "test_graph.graphml")
+    save_graph(G, "/tmp/test_graph.graphml")
 
     print("\n  ✅ graph_builder.py works correctly!")
