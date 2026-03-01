@@ -296,7 +296,8 @@ The dashboard opens as a split-screen view:
 └─────────────────────┴──────────────────────────────────────────┘
 ```
 
-> `![Dashboard screenshot](docs/dashboard_screenshot.png)`
+<img width="1910" height="896" alt="dashboard_screenshot" src="https://github.com/user-attachments/assets/e2d79aff-13bf-41a8-a24f-ae772e163b91" />
+
 
 **Node colour legend:**
 
@@ -399,12 +400,11 @@ Developed for the **ML in VLSI CAD** course.
 
 ## Screenshots
 
-```markdown
-<!-- ![Dashboard overview](docs/dashboard.png) -->
-<!-- ![Animated graph close-up](docs/graph_animated.png) -->
-<!-- ![Console report output](docs/terminal_output1.png) -->
-<!-- ![Console report output](docs/terminal_output2.png) -->
-```
+
+<img width="548" height="542" alt="dashboard" src="https://github.com/user-attachments/assets/fe6ab072-e23a-4188-8392-31b7d88060d2" />
+<img width="1364" height="826" alt="graph_animated" src="https://github.com/user-attachments/assets/68f6bf64-d84d-42bb-b370-c9db04f1a247" />
+<img width="1051" height="810" alt="terminal_output1" src="https://github.com/user-attachments/assets/fa6ec6fd-6fad-4e2f-b32c-542fbd38d4cf" />
+<img width="586" height="728" alt="terminal_output2" src="https://github.com/user-attachments/assets/7110e682-a469-4379-865a-6f999ed3934e" />
 
 ---
 
